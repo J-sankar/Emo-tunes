@@ -91,14 +91,35 @@ public class PlaylistService {
 
     }
 
-    public List<Playlists> getEmolistsByUser(Integer userId) {
+    public List<EmolistFE> getEmolistsByUser(Integer userId) {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found with ID: " + userId));
         List<Playlists> playlists = playlistRepository.findByUserAndEmotionIsNotNull(user);
         if (playlists.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, " You have not created any emolists yet");
         }
-        return playlists;
+        return playlists.stream()
+                .map(p -> EmolistFE.builder()
+                        .playlistId(p.getId())
+                        .playlistName(p.getName())
+                        .coverUrl(p.getCoverUrl())
+                        .emotion(p.getEmotion()) // add the emotion field
+                        .songs(p.getSongs() != null
+                                ? p.getSongs().stream()
+                                .map(song -> SongInfo.builder()
+                                        .songID(song.getSpotifyId())
+                                        .songName(song.getTitle())
+                                        .artistName(song.getArtistName())
+                                        .coverURL(song.getCoverUrl())
+                                        .songURL(song.getSongUrl())
+                                        .duration(song.getDurationMilliseconds())
+                                        .releaseDate(String.valueOf(song.getReleaseDate()))
+                                        .build())
+                                .collect(Collectors.toList())
+                                : List.of())
+                        .build())
+                .collect(Collectors.toList());
+
     }
 
     public Playlists getPlaylistByName(String name, Integer userId) {
